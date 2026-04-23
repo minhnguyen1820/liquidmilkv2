@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid Milk Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* --- DESIGN SYSTEM "LIQUID GLASS" --- */
+        :root {
+            --bg-pure-white: #FFFFFF;
+            --text-body: #111111;
+            --text-header: #0A192F;
+            --gradient-core: linear-gradient(135deg, #00B4DB, #0083B0, #0A192F);
+            --gradient-fluid: linear-gradient(45deg, #0A192F, #0083B0, #00B4DB);
+            --accent-gold: #FFC107;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.06);
+            --radius-heavy: 24px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-pure-white);
+            color: var(--text-body);
+            position: relative;
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+
+        h1, h2, h3, h4, h5 { font-weight: 900; color: var(--text-header); letter-spacing: -0.5px; }
+        p, span, div, td, th, li { font-weight: 400; }
+        strong { font-weight: 700; color: var(--text-header); }
+
+        .gradient-text { background: var(--gradient-core); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .gradient-bg { background: var(--gradient-core); color: white; }
+
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border); border-radius: var(--radius-heavy);
+            box-shadow: var(--glass-shadow); transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover { transform: translateY(-4px); box-shadow: 0 16px 50px 0 rgba(0, 180, 219, 0.15); }
+
+        .glass-nav { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); }
+
+        /* --- 3D BLOBS --- */
+        .blob { position: absolute; background: var(--gradient-core); border-radius: 50%; filter: blur(70px); z-index: -1; opacity: 0.12; animation: float 8s ease-in-out infinite; pointer-events: none; }
+        .blob-1 { width: 500px; height: 500px; top: -100px; left: -150px; }
+        .blob-2 { width: 450px; height: 450px; top: 25%; right: -150px; background: var(--gradient-fluid); animation-delay: 2s; }
+        .blob-3 { width: 600px; height: 600px; bottom: 5%; left: -200px; animation-delay: 4s; }
+
+        @keyframes float { 0% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-40px) scale(1.05); } 100% { transform: translateY(0px) scale(1); } }
+
+        /* --- CHARTS & MODALS --- */
+        .chart-container { position: relative; width: 100%; margin: 0 auto; height: 400px; max-height: 500px; }
+        @media (max-width: 768px) { .chart-container { height: 350px; } }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(10, 25, 47, 0.85); backdrop-filter: blur(8px);
+            z-index: 100; align-items: center; justify-content: center; padding: 1rem; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content {
+            background: var(--bg-pure-white); border-radius: var(--radius-heavy); max-width: 900px; width: 100%;
+            max-height: 90vh; overflow-y: auto; transform: scale(0.95); transition: transform 0.3s ease;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        .cite-ref { vertical-align: super; font-size: 0.75em; color: #00B4DB; font-weight: 900; cursor: pointer; text-decoration: none; }
+        .cite-ref:hover { text-decoration: underline; color: var(--text-header); }
+
+        /* --- TOGGLE SWITCH --- */
+        .toggle-checkbox:checked { right: 0; border-color: #00B4DB; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #00B4DB; }
+        .toggle-checkbox:checked + .toggle-label:after { transform: translateX(100%); border-color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- NAVIGATION -->
+    <nav class="glass-nav p-4 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center px-4 max-w-7xl">
+            <h1 class="text-2xl font-black tracking-tighter uppercase">
+                <span style="color: var(--text-header)">Liquid Milk</span> 
+                <span style="color: #00B4DB">Analytics</span>
+            </h1>
+            
+            <div class="flex items-center space-x-6">
+                <div class="hidden lg:flex space-x-6 text-sm font-bold" style="color: var(--text-header)">
+                    <a href="#tree-origin" class="hover:text-[#00B4DB] transition" data-lang="vn">1. Phân Loại</a>
+                    <a href="#tree-origin" class="hover:text-[#00B4DB] transition hidden" data-lang="en">1. Classification</a>
+                    <a href="#details" class="hover:text-[#00B4DB] transition" data-lang="vn">Chi tiết Kỹ thuật</a>
+                    <a href="#details" class="hover:text-[#00B4DB] transition hidden" data-lang="en">Details</a>
+                    <a href="#matrix" class="hover:text-[#00B4DB] transition" data-lang="vn">2. Ma trận</a>
+                    <a href="#matrix" class="hover:text-[#00B4DB] transition hidden" data-lang="en">2. Matrix</a>
+                    <a href="#regional" class="hover:text-[#00B4DB] transition" data-lang="vn">3. EU vs SEA</a>
+                    <a href="#regional" class="hover:text-[#00B4DB] transition hidden" data-lang="en">3. EU vs SEA</a>
+                    <a href="#qcvn" class="hover:text-[#00B4DB] transition" data-lang="vn">4. QCVN vs Ngành</a>
+                    <a href="#qcvn" class="hover:text-[#00B4DB] transition hidden" data-lang="en">4. Guidelines</a>
+                </div>
+                
+                <!-- EN/VN Switch -->
+                <div class="flex items-center space-x-2 border-l border-gray-300 pl-4">
+                    <span class="text-xs font-bold text-gray-500" id="lang-vn-label">VN</span>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="lang-toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer z-10 top-0 bottom-0 m-auto transition-transform duration-200" onclick="toggleLanguage()"/>
+                        <label for="lang-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                    <span class="text-xs font-bold text-gray-500" id="lang-en-label">EN</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HEADER -->
+    <header class="py-24 px-4 text-center relative z-10">
+        <div class="container mx-auto max-w-5xl glass-card py-16 px-8 lg:px-16 border-t-[6px] border-[#00B4DB]">
+            <h2 class="text-4xl md:text-6xl font-black mb-8 leading-tight" data-lang="vn">
+                Phân tích chuyên sâu<br>
+                <span class="gradient-text">Các Phân Loại Sữa Lỏng</span>
+            </h2>
+            <h2 class="text-4xl md:text-6xl font-black mb-8 leading-tight hidden" data-lang="en">
+                Industrial Deep Dive<br>
+                <span class="gradient-text">Liquid Milk Categories</span>
+            </h2>
+            <p class="text-lg md:text-xl max-w-3xl mx-auto leading-relaxed" data-lang="vn">
+                Nghiên cứu được chuẩn hóa hoàn toàn dựa trên cốt lõi nguồn nguyên liệu (Farm Base vs Non-Farm Base), quy trình công nghiệp và sự ánh xạ luật định <a href="#ref1" class="cite-ref">[1]</a>.
+            </p>
+            <p class="text-lg md:text-xl max-w-3xl mx-auto leading-relaxed hidden" data-lang="en">
+                Standardized research strictly based on core raw materials (Farm Base vs Non-Farm Base), industrial processes, and legal mapping <a href="#ref1" class="cite-ref">[1]</a>.
+            </p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-12 relative z-10 max-w-7xl">
+
+        <!-- I. DECISION TREE -->
+        <section id="tree-origin" class="mb-32">
+            <div class="text-center mb-16">
+                <h3 class="text-4xl md:text-5xl" data-lang="vn">I. Phân tách ranh giới Nguyên liệu cốt lõi</h3>
+                <h3 class="text-4xl md:text-5xl hidden" data-lang="en">I. Core Material Boundary Classification</h3>
+                <p class="text-lg mt-4 max-w-3xl mx-auto" data-lang="vn">Sơ đồ khẳng định tính nhất quán: Các nhóm (1), (2), (3) bắt buộc phải dùng Base sữa tươi. Các nhóm (4), (5) thuần túy sử dụng Bột sữa pha lại với nước.</p>
+                <p class="text-lg mt-4 max-w-3xl mx-auto hidden" data-lang="en">A definitive map ensuring consistency: Groups (1), (2), (3) mandate Fresh Milk Base. Groups (4) and (5) strictly utilize Milk Powder reconstituted with water.</p>
+            </div>
+
+            <div class="overflow-x-auto w-full pb-12">
+                <div class="min-w-[1100px] flex flex-col items-center">
+                    <div class="gradient-bg py-4 px-12 rounded-full shadow-lg z-10 font-black text-lg tracking-wide uppercase border-4 border-white">
+                        <span data-lang="vn">Nguồn nguyên liệu đầu vào (Base Material)</span>
+                        <span data-lang="en" class="hidden">Base Material Origin</span>
+                    </div>
+
+                    <div class="w-1 h-12 bg-[#0A192F]"></div>
+
+                    <div class="relative flex w-full max-w-[1000px] justify-between">
+                        <div class="absolute top-0 left-[25%] right-[25%] h-1 bg-[#0A192F]"></div>
+
+                        <!-- FARM BASE -->
+                        <div class="w-1/2 flex flex-col items-center pt-12 relative">
+                            <div class="absolute top-0 left-1/2 w-1 h-12 bg-[#0A192F] -translate-x-1/2"></div>
+                            
+                            <div class="glass-card py-4 px-10 z-10 mb-12 whitespace-nowrap text-center border-b-4 border-[#00B4DB]">
+                                <span class="font-black text-[#00B4DB] text-2xl block uppercase">FARM BASE</span>
+                                <span class="text-sm font-bold text-[#111111]" data-lang="vn">Có trang trại và dùng sữa vắt nguyên chất</span>
+                                <span class="text-sm font-bold text-[#111111] hidden" data-lang="en">Farms sourced, using pure raw milk</span>
+                            </div>
+
+                            <div class="relative flex w-full max-w-[500px] justify-between">
+                                <div class="absolute top-0 left-[16.66%] right-[16.66%] h-1 bg-[#00B4DB]"></div>
+
+                                <div class="w-1/3 flex flex-col items-center pt-10 relative px-2">
+                                    <div class="absolute top-0 left-1/2 w-1 h-10 bg-[#00B4DB] -translate-x-1/2"></div>
+                                    <div class="text-xs glass-card border-none shadow-sm px-2 py-3 mb-4 h-16 flex items-center justify-center text-center w-full leading-tight font-bold text-[#111111]">
+                                        <span data-lang="vn">100% Sữa tươi<br>nguyên chất</span>
+                                        <span data-lang="en" class="hidden">100% Pure<br>Fresh Milk</span>
+                                    </div>
+                                    <div class="bg-[#00B4DB] text-white font-black py-4 px-1 rounded-[20px] shadow-lg w-full text-center text-sm leading-tight">
+                                        (1) FRESH MILK
+                                    </div>
+                                </div>
+                                <div class="w-1/3 flex flex-col items-center pt-10 relative px-2">
+                                    <div class="absolute top-0 left-1/2 w-1 h-10 bg-[#00B4DB] -translate-x-1/2"></div>
+                                    <div class="text-xs glass-card border-none shadow-sm px-2 py-3 mb-4 h-16 flex items-center justify-center text-center w-full leading-tight font-bold text-[#111111]">
+                                        <span data-lang="vn">Sữa tươi +<br>Vitamin / Khoáng</span>
+                                        <span data-lang="en" class="hidden">Fresh Milk +<br>Vitamins / Minerals</span>
+                                    </div>
+                                    <div class="bg-[#0083B0] text-white font-black py-4 px-1 rounded-[20px] shadow-lg w-full text-center text-sm leading-tight">
+                                        (2) FORTIFIED MILK
+                                    </div>
+                                </div>
+                                <div class="w-1/3 flex flex-col items-center pt-10 relative px-2">
+                                    <div class="absolute top-0 left-1/2 w-1 h-10 bg-[#00B4DB] -translate-x-1/2"></div>
+                                    <div class="text-[11px] glass-card border-none shadow-sm px-1 py-3 mb-4 h-16 flex items-center justify-center text-center w-full leading-tight font-bold text-[#111111]">
+                                        <span data-lang="vn">Sữa nền (tươi) + Bột<br>+ Vi chất đậm đặc</span>
+                                        <span data-lang="en" class="hidden">Base (Fresh) + Powder<br>+ Dense Nutrients</span>
+                                    </div>
+                                    <div class="bg-[#FFC107] text-[#0A192F] font-black py-4 px-1 rounded-[20px] shadow-lg w-full text-center text-sm leading-tight">
+                                        (3) COMPOSITE /<br>RTD MILK
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NON-FARM BASE -->
+                        <div class="w-1/2 flex flex-col items-center pt-12 relative">
+                            <div class="absolute top-0 left-1/2 w-1 h-12 bg-[#0A192F] -translate-x-1/2"></div>
+                            
+                            <div class="glass-card py-4 px-10 z-10 mb-12 whitespace-nowrap text-center border-b-4 border-[#111111]">
+                                <span class="font-black text-[#0A192F] text-2xl block uppercase">NON-FARM BASE</span>
+                                <span class="text-sm font-bold text-[#111111]" data-lang="vn">Không dùng sữa tươi, dùng bột pha lại</span>
+                                <span class="text-sm font-bold text-[#111111] hidden" data-lang="en">No fresh milk, reconstituted from powder</span>
+                            </div>
+
+                            <div class="relative flex w-full max-w-[400px] justify-between">
+                                <div class="absolute top-0 left-[25%] right-[25%] h-1 bg-[#0A192F]"></div>
+
+                                <div class="w-1/2 flex flex-col items-center pt-10 relative px-4">
+                                    <div class="absolute top-0 left-1/2 w-1 h-10 bg-[#0A192F] -translate-x-1/2"></div>
+                                    <div class="text-[11px] glass-card border-none shadow-sm px-2 py-3 mb-4 h-16 flex items-center justify-center text-center w-full leading-tight font-bold text-[#111111]">
+                                        <span data-lang="vn">Bột sữa thô + Nước<br>(Cơ bản)</span>
+                                        <span data-lang="en" class="hidden">Raw Milk Powder<br>+ Water (Basic)</span>
+                                    </div>
+                                    <div class="bg-[#111111] text-white font-black py-4 px-1 rounded-[20px] shadow-lg w-full text-center text-sm leading-tight">
+                                        (4) CONVENTIONAL<br>UHT MILK<br><span class="text-[10px] text-[#FFC107] italic" data-lang="vn">(Obsolete Trend)</span><span class="text-[10px] text-[#FFC107] italic hidden" data-lang="en">(Obsolete Trend)</span>
+                                    </div>
+                                </div>
+                                <div class="w-1/2 flex flex-col items-center pt-10 relative px-4">
+                                    <div class="absolute top-0 left-1/2 w-1 h-10 bg-[#0A192F] -translate-x-1/2"></div>
+                                    <div class="text-[11px] glass-card border-none shadow-sm px-2 py-3 mb-4 h-16 flex items-center justify-center text-center w-full leading-tight font-bold text-[#111111]">
+                                        <span data-lang="vn">Bột sữa + Béo sữa +<br>Nước + Vi chất</span>
+                                        <span data-lang="en" class="hidden">Powder + Milk Fat +<br>Water + Nutrients</span>
+                                    </div>
+                                    <div class="bg-[#0A192F] text-white font-black py-4 px-1 rounded-[20px] shadow-lg w-full text-center text-sm leading-tight">
+                                        (5) RECONSTITUTED<br>MILK
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- I.I DETAILS -->
+        <section id="details" class="mb-32">
+            <div class="mb-12 border-l-[8px] border-[#00B4DB] pl-8 py-2">
+                <h3 class="text-4xl md:text-5xl" data-lang="vn">Chi tiết Kỹ thuật Toàn diện</h3>
+                <h3 class="text-4xl md:text-5xl hidden" data-lang="en">Comprehensive Technical Details</h3>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111]" data-lang="vn">Bóc tách toàn diện 8 trường thông tin bắt buộc: từ Nguyên liệu cốt lõi, Giá trị dinh dưỡng, Đặc tính kỹ thuật, đến Ưu điểm thương mại và Ví dụ đại diện.</p>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111] hidden" data-lang="en">A complete breakdown of 8 mandatory fields: from Core Materials, Nutritional Value, Technical Characteristics, to Commercial Pros and Representative Examples.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <!-- 1. Fresh Milk -->
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-[#00B4DB]"></div>
+                    <div class="mb-6 border-b border-gray-200 pb-4">
+                        <h4 class="text-3xl font-black text-[#00B4DB]">(1) Fresh Milk</h4>
+                    </div>
+                    <div class="space-y-4 text-sm flex-grow text-gray-800">
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Nguyên liệu cốt lõi:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Core Material:</strong> <span data-lang="vn">100% Sữa tươi nguyên chất vắt trực tiếp từ trang trại. Tuyệt đối không thêm phụ gia.</span><span class="hidden" data-lang="en">100% pure fresh milk directly from farms. Absolutely no additives.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bản chất quy trình:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Process Nature:</strong> <span data-lang="vn">Thanh trùng (~72°C) hoặc Tiệt trùng UHT diệt khuẩn dòng chảy thẳng.</span><span class="hidden" data-lang="en">Pasteurization (~72°C) or UHT sterilization via linear flow.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Giá trị dinh dưỡng:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Nutritional Value:</strong> <span data-lang="vn">Tuyệt đối nguyên bản. Bảo toàn trọn vẹn kết cấu đạm sinh học Whey và Casein, không bị biến tính bởi nhiệt.</span><span class="hidden" data-lang="en">Absolutely original. Fully preserves bio-protein structures (Whey/Casein) without heat denaturation.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Đặc tính kỹ thuật & Yêu cầu:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Tech Characteristics & Req:</strong> <span data-lang="vn">Quy trình không có khâu phối trộn, nhưng yêu cầu màng lọc vi sinh và hệ thống vô trùng cực kỳ nghiêm ngặt.</span><span class="hidden" data-lang="en">No mixing phase, but strictly demands micro-filtration and stringent aseptic systems.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bảo quản:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Storage:</strong> <span data-lang="vn">Dòng thanh trùng bảo quản lạnh (4°C, 7-14 ngày). Dòng UHT để nhiệt độ phòng (6-12 tháng).</span><span class="hidden" data-lang="en">Pasteurized requires cold chain (4°C, 7-14 days). UHT stored at room temp (6-12 months).</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ưu điểm thương mại:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Commercial Pros:</strong> <span data-lang="vn">Phân khúc cao cấp (Premium), dễ dàng định giá cao, nhắm đến khách hàng chuộng organic.</span><span class="hidden" data-lang="en">Premium segment, easy to command higher prices, targeting organic-conscious consumers.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ví dụ đại diện:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Representative Examples:</strong> <span data-lang="vn">Vinamilk Green Farm, TH True Milk (nguyên bản), NTF Nutimilk Sữa tươi sạch.</span><span class="hidden" data-lang="en">Vinamilk Green Farm, TH True Milk (Original), NTF Nutimilk.</span></p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-6 border-t border-gray-200 pt-4">
+                        <div class="bg-[#00B4DB]/10 p-4 rounded-xl border border-[#00B4DB]/30">
+                            <p class="text-[#0A192F] font-black mb-1">Pros</p>
+                            <p class="text-xs" data-lang="vn">Tinh khiết 100%, bảo toàn trọn vẹn chất lượng sinh học gốc.</p>
+                            <p class="text-xs hidden" data-lang="en">100% pure, fully preserving original biological quality.</p>
+                        </div>
+                        <div class="bg-[#111111]/5 p-4 rounded-xl border border-[#111111]/10">
+                            <p class="text-[#0A192F] font-black mb-1">Cons</p>
+                            <p class="text-xs" data-lang="vn">Chi phí sản xuất đắt đỏ, phụ thuộc sản lượng bò tươi.</p>
+                            <p class="text-xs hidden" data-lang="en">Expensive production cost, limited by fresh herd yield.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Fortified Milk -->
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-[#0083B0]"></div>
+                    <div class="mb-6 border-b border-gray-200 pb-4">
+                        <h4 class="text-3xl font-black text-[#0083B0]">(2) Fortified Milk</h4>
+                    </div>
+                    <div class="space-y-4 text-sm flex-grow text-gray-800">
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Nguyên liệu cốt lõi:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Core Material:</strong> <span data-lang="vn">Base Sữa tươi + bổ sung thêm các loại Vitamin (A, D, E, K) và khoáng chất (Canxi).</span><span class="hidden" data-lang="en">Fresh Milk Base + added Vitamins (A, D, E, K) and minerals (Calcium).</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bản chất quy trình:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Process Nature:</strong> <span data-lang="vn">Phối trộn vi chất vào sữa nguyên liệu trước khi đi qua màng tiệt trùng UHT.</span><span class="hidden" data-lang="en">Mixing micronutrients into the raw milk stream prior to UHT sterilization.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Giá trị dinh dưỡng:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Nutritional Value:</strong> <span data-lang="vn">Bù đắp hoàn hảo sự thiếu hụt sinh lý tự nhiên của sữa bò (đặc biệt là Canxi và Vitamin D3).</span><span class="hidden" data-lang="en">Perfectly compensates for the natural physiological deficiencies of cow's milk (especially Calcium and Vit D3).</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Đặc tính kỹ thuật & Yêu cầu:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Tech Characteristics & Req:</strong> <span data-lang="vn">Bơm định lượng vi chất vô trùng (Aseptic Dosing) đòi hỏi độ chính xác cao để vitamin không bị nhiệt phá hủy.</span><span class="hidden" data-lang="en">Aseptic Dosing demands high precision so vitamins aren't destroyed by heat.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bảo quản:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Storage:</strong> <span data-lang="vn">UHT 6-9 tháng. Bắt buộc dùng bao bì cản sáng tốt chống tia UV phân hủy vitamin.</span><span class="hidden" data-lang="en">UHT 6-9 months. Requires high UV-blocking packaging to stop vitamin degradation.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ưu điểm thương mại:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Commercial Pros:</strong> <span data-lang="vn">Tạo ra sản phẩm chức năng cơ bản, dễ dàng truyền thông "Tốt cho xương khớp/Mắt".</span><span class="hidden" data-lang="en">Creates basic functional products, easy to market "Good for Bones/Eyes".</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ví dụ đại diện:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Representative Examples:</strong> <span data-lang="vn">Chiang Mai Fresh Milk ADEK+DHA, Các dòng tươi tiệt trùng "Bổ sung Canxi".</span><span class="hidden" data-lang="en">Chiang Mai Fresh Milk ADEK+DHA, "Calcium Enriched" UHT fresh lines.</span></p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-6 border-t border-gray-200 pt-4">
+                        <div class="bg-[#0083B0]/10 p-4 rounded-xl border border-[#0083B0]/30">
+                            <p class="text-[#0A192F] font-black mb-1">Pros</p>
+                            <p class="text-xs" data-lang="vn">Dùng sữa tươi làm nền, bổ sung chính xác dưỡng chất mà cơ thể cần.</p>
+                            <p class="text-xs hidden" data-lang="en">Fresh base, accurately supplementing essential daily nutrients.</p>
+                        </div>
+                        <div class="bg-[#111111]/5 p-4 rounded-xl border border-[#111111]/10">
+                            <p class="text-[#0A192F] font-black mb-1">Cons</p>
+                            <p class="text-xs" data-lang="vn">QA/QC khắt khe hơn, hao hụt lượng nhỏ vitamin khi qua UHT.</p>
+                            <p class="text-xs hidden" data-lang="en">Stricter QA/QC, minor vitamin loss during UHT heat shock.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Composite / RTD Milk -->
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden lg:col-span-2">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-[#FFC107]"></div>
+                    <div class="mb-6 border-b border-gray-200 pb-4">
+                        <h4 class="text-3xl font-black text-[#0A192F]">(3) Composite / RTD Milk</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm flex-grow text-gray-800">
+                        <div class="space-y-4">
+                            <p><strong class="text-[#0A192F]" data-lang="vn">Nguyên liệu cốt lõi:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Core Material:</strong> <span data-lang="vn">Sữa nền (tươi) + Sữa bột + Tổ hợp vi chất siêu đậm đặc (DHA, HMO, chất xơ FOS,...). Là dạng công thức lỏng tinh vi.</span><span class="hidden" data-lang="en">Base Milk (fresh) + Milk Powder + Super dense micronutrient complex (DHA, HMO, FOS fiber,...). A sophisticated liquid formula.</span></p>
+                            
+                            <p><strong class="text-[#0A192F]" data-lang="vn">Bản chất quy trình:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Process Nature:</strong> <span data-lang="vn">Khuấy trộn hóa lý đa thành phần, đồng hóa và sử dụng chất ổn định kết cấu màng.</span><span class="hidden" data-lang="en">Multi-component physicochemical mixing, homogenizing, using structural stabilizers.</span></p>
+                            
+                            <p><strong class="text-[#0A192F]" data-lang="vn">Giá trị dinh dưỡng:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Nutritional Value:</strong> <span data-lang="vn">Đỉnh cao thiết kế (Engineered Nutrition). Tập trung tối đa năng lượng, đáp ứng hoàn hảo các đích đến sinh lý như phát triển trí não não, tăng chiều cao.</span><span class="hidden" data-lang="en">Pinnacle of Engineered Nutrition. Maximizes energy, perfectly targeting physiological goals like brain & height development.</span></p>
+                            
+                            <p><strong class="text-[#0A192F]" data-lang="vn">Đặc tính kỹ thuật & Yêu cầu:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Tech Characteristics & Req:</strong> <span data-lang="vn">Máy Đồng hóa (Homogenizer) phải nén áp suất cực lớn để ép dầu cá DHA và khoáng chất vào màng sữa không bị kết tủa tách lớp. Cần hệ chất ổn định (Stabilizers) hoàn hảo.</span><span class="hidden" data-lang="en">Homogenizer requires extreme pressure to force DHA oil and minerals into the milk matrix without precipitating. Perfect stabilizers are needed.</span></p>
+                        </div>
+                        <div class="space-y-4 flex flex-col justify-between">
+                            <div>
+                                <p><strong class="text-[#0A192F]" data-lang="vn">Bảo quản:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Storage:</strong> <span data-lang="vn">UHT 6-8 tháng. Nguy cơ tạo gel (gelation) rất cao nếu công thức tỷ lệ bị sai lệch.</span><span class="hidden" data-lang="en">UHT 6-8 months. High risk of gelation if formula ratios deviate.</span></p>
+                                
+                                <p class="mt-4"><strong class="text-[#0A192F]" data-lang="vn">Ưu điểm thương mại:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Commercial Pros:</strong> <span data-lang="vn">Thống trị phân khúc sữa công thức lỏng trẻ em, biên độ lợi nhuận cực lớn.</span><span class="hidden" data-lang="en">Dominates the liquid infant formula segment, massive profit margins.</span></p>
+                                
+                                <p class="mt-4"><strong class="text-[#0A192F]" data-lang="vn">Ví dụ đại diện:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Representative Examples:</strong> <span data-lang="vn">Vinamilk Optimum Gold, Nuvi, Vinamilk ADM, Danone Hi-Q.</span><span class="hidden" data-lang="en">Vinamilk Optimum Gold, Nuvi, Vinamilk ADM, Danone Hi-Q.</span></p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-6 border-t border-gray-200 pt-4">
+                                <div class="bg-[#FFC107]/20 p-4 rounded-xl border border-[#FFC107]/50">
+                                    <p class="text-[#0A192F] font-black mb-1">Pros</p>
+                                    <p class="text-xs" data-lang="vn">Vô địch về hàm lượng dinh dưỡng thiết kế. Giúp trẻ phát triển trúng đích.</p>
+                                    <p class="text-xs hidden" data-lang="en">Champion of engineered nutrition density. Precise targeted development.</p>
+                                </div>
+                                <div class="bg-[#111111]/5 p-4 rounded-xl border border-[#111111]/10">
+                                    <p class="text-[#0A192F] font-black mb-1">Cons</p>
+                                    <p class="text-xs" data-lang="vn">Dùng nhiều chất ổn định, vị nhân tạo, rủi ro kỹ thuật tách lớp rất cao.</p>
+                                    <p class="text-xs hidden" data-lang="en">Uses many stabilizers, artificial taste, high risk of layer separation.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Conventional UHT -->
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-[#111111]"></div>
+                    <div class="mb-6 border-b border-gray-200 pb-4">
+                        <h4 class="text-3xl font-black text-[#111111]">(4) Conventional UHT</h4>
+                    </div>
+                    <div class="space-y-4 text-sm flex-grow text-gray-800">
+                        <p data-lang="vn" class="text-rose-600 font-bold mb-2">Lưu ý: Hoàn toàn KHÔNG dùng sữa vắt tươi.</p>
+                        <p data-lang="en" class="text-rose-600 font-bold mb-2 hidden">Note: ZERO fresh extracted milk used.</p>
+
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Nguyên liệu cốt lõi:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Core Material:</strong> <span data-lang="vn">Chỉ bao gồm Bột sữa thô (WMP/SMP) + Nước sạch.</span><span class="hidden" data-lang="en">Only Raw Milk Powder (WMP/SMP) + Clean Water.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bản chất quy trình:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Process Nature:</strong> <span data-lang="vn">Hòa tan bột thô và gia nhiệt UHT truyền thống thời gian dài để diệt khuẩn cơ bản.</span><span class="hidden" data-lang="en">Dissolving powder and traditional long-holding UHT heating to eliminate bacteria.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Giá trị dinh dưỡng:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Nutritional Value:</strong> <span data-lang="vn">Rất kém. Đạm cơ bản bị cứng lại khó tiêu do nhiệt, các vitamin hòa tan bốc hơi sạch do đun quá lửa.</span><span class="hidden" data-lang="en">Very poor. Basic proteins harden, water-soluble vitamins evaporate due to over-heating.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Đặc tính kỹ thuật & Yêu cầu:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Tech Characteristics & Req:</strong> <span data-lang="vn">Máy móc đời cũ thô sơ, không kiểm soát được phản ứng Maillard gây khét lẹt.</span><span class="hidden" data-lang="en">Primitive old machinery, fails to control Maillard reaction causing burnt flavors.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bảo quản:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Storage:</strong> <span data-lang="vn">Khoảng 6 tháng nhiệt độ phòng.</span><span class="hidden" data-lang="en">About 6 months at room temperature.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ưu điểm thương mại:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Commercial Pros:</strong> <span data-lang="vn">Không còn ưu điểm. Từng được dùng để đánh giặc giá cực rẻ ở các thập kỷ trước.</span><span class="hidden" data-lang="en">No pros left. Once used for extreme low-price wars in past decades.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ví dụ đại diện:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Representative Examples:</strong> <span data-lang="vn">Các sản phẩm vô danh, siêu rẻ ở vùng sâu vùng xa (hiện các hãng lớn đã khai tử).</span><span class="hidden" data-lang="en">Nameless, ultra-cheap products in remote areas (major brands phased out).</span></p>
+                    </div>
+                    <div class="bg-[#111111]/10 p-4 rounded-xl border border-[#111111]/20 mt-6 text-center">
+                        <p class="text-[#0A192F] font-black text-lg mb-1">Obsolete Trend (Đã thoái trào)</p>
+                        <p class="text-xs text-[#111111]" data-lang="vn">Sản phẩm này không còn ưu điểm cạnh tranh. Nhược điểm chí mạng là làm biến tính đạm nặng nề, hương vị khét (cooked flavor) quá lớn.</p>
+                        <p class="text-xs text-[#111111] hidden" data-lang="en">No competitive advantage left. Fatal flaw: severely denatures protein, huge "cooked flavor".</p>
+                    </div>
+                </div>
+
+                <!-- 5. Reconstituted Milk -->
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-[#0A192F]"></div>
+                    <div class="mb-6 border-b border-gray-200 pb-4">
+                        <h4 class="text-3xl font-black text-[#0A192F]">(5) Reconstituted Milk</h4>
+                    </div>
+                    <div class="space-y-4 text-sm flex-grow text-gray-800">
+                        <p data-lang="vn" class="text-rose-600 font-bold mb-2">Lưu ý: Hoàn toàn KHÔNG dùng sữa vắt tươi.</p>
+                        <p data-lang="en" class="text-rose-600 font-bold mb-2 hidden">Note: ZERO fresh extracted milk used.</p>
+
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Nguyên liệu cốt lõi:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Core Material:</strong> <span data-lang="vn">Sữa bột gầy/nguyên kem + <strong>Chất béo sữa (Milk fat)</strong> + Nước + Vi chất. Bản chất là công thức "xây dựng lại" cho giống sữa tươi.</span><span class="hidden" data-lang="en">Milk Powder + <strong>Milk Fat</strong> + Water + Nutrients. Essentially a "rebuilding" formula to mimic fresh milk.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bản chất quy trình:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Process Nature:</strong> <span data-lang="vn">Máy đánh tơi bột tốc độ cao (High-shear), đồng hóa ép chặt béo trở lại vào nước, khử bọt khí, và UHT siêu trùng.</span><span class="hidden" data-lang="en">High-shear blending, homogenizing fat back into water, strict de-aeration, and UHT sterilization.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Giá trị dinh dưỡng:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Nutritional Value:</strong> <span data-lang="vn">Dưỡng chất sinh lý đã chết do qua 2 lần nhiệt (sấy khô bột ở nước ngoài & nấu UHT tại nhà máy). Chủ yếu cung cấp calo và năng lượng béo.</span><span class="hidden" data-lang="en">Physiological nutrients are dead due to dual heating (drying & UHT). Mostly provides calories and fat energy.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Đặc tính kỹ thuật & Yêu cầu:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Tech Characteristics & Req:</strong> <span data-lang="vn">Khâu khử bọt khí (De-aeration) cực kỳ quan trọng để bột không bị vón và chất béo không bị oxy hóa gây mùi gắt.</span><span class="hidden" data-lang="en">De-aeration is critical so powder doesn't clump and fat doesn't oxidize/go rancid.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Bảo quản:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Storage:</strong> <span data-lang="vn">Rất an toàn (6-9 tháng) do nguồn bột nhập khẩu ngay từ đầu đã vô trùng hoàn toàn.</span><span class="hidden" data-lang="en">Very safe (6-9 months) as the imported powder ingredient is completely sterile from the start.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ưu điểm thương mại:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Commercial Pros:</strong> <span data-lang="vn">Làm chủ giá thành sản xuất cực thấp, không sợ bò ốm, không lo mùa vụ vắt sữa. Lợi nhuận phục vụ khối đại chúng rất tốt.</span><span class="hidden" data-lang="en">Masters extremely low production costs, immune to cow health issues or milking seasons. High mass-market profit.</span></p>
+                        
+                        <p><strong class="text-[#0A192F]" data-lang="vn">Ví dụ đại diện:</strong><strong class="text-[#0A192F] hidden" data-lang="en">Representative Examples:</strong> <span data-lang="vn">Các dòng "Sữa dinh dưỡng đóng bịch" giá rẻ của Vinamilk, Dutch Lady, Nestle.</span><span class="hidden" data-lang="en">Cheap "Nutritional Milk Pouches" from Vinamilk, Dutch Lady, Nestle.</span></p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-6 border-t border-gray-200 pt-4">
+                        <div class="bg-[#0A192F]/10 p-4 rounded-xl border border-[#0A192F]/30">
+                            <p class="text-[#0A192F] font-black mb-1">Pros</p>
+                            <p class="text-xs" data-lang="vn">Mô phỏng khá tốt vị béo của sữa thật. Tối ưu chi phí sản xuất cực tốt.</p>
+                            <p class="text-xs hidden" data-lang="en">Simulates real milk fatness well. Excellent production cost optimization.</p>
+                        </div>
+                        <div class="bg-[#111111]/5 p-4 rounded-xl border border-[#111111]/10">
+                            <p class="text-[#0A192F] font-black mb-1">Cons</p>
+                            <p class="text-xs" data-lang="vn">Heavily processed (chế biến cực sâu), không mang lại giá trị sinh học "tươi".</p>
+                            <p class="text-xs hidden" data-lang="en">Heavily processed, delivers zero "fresh" biological value.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RADAR CHART -->
+        <section id="radar-section" class="mb-32">
+            <div class="glass-card p-10 text-center relative">
+                <h3 class="text-3xl mb-4 text-[#0A192F]" data-lang="vn">Biểu đồ Đánh giá Đa chiều (Radar)</h3>
+                <h3 class="text-3xl mb-4 text-[#0A192F] hidden" data-lang="en">Multi-dimensional Evaluation (Radar)</h3>
+                <p class="text-lg mb-8 max-w-3xl mx-auto" data-lang="vn">Chấm điểm năng lực cạnh tranh của 5 nhóm dựa trên dữ liệu thành phần đã được chuẩn hóa.</p>
+                <p class="text-lg mb-8 max-w-3xl mx-auto hidden" data-lang="en">Scoring competitive capabilities of all 5 groups based on standardized ingredient data.</p>
+                
+                <button onclick="openModal('radarRubricModal')" class="absolute top-10 right-10 gradient-bg text-white font-bold py-2 px-6 rounded-full shadow-lg hover:scale-105 transition-transform z-10">
+                    <span data-lang="vn">Mở Rubric Chấm Điểm</span>
+                    <span data-lang="en" class="hidden">View Scoring Rubric</span>
+                </button>
+
+                <div class="chart-container" style="height: 550px;">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- RADAR MODAL -->
+        <div id="radarRubricModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="flex justify-between items-center p-8 border-b border-gray-200 sticky top-0 bg-white z-10">
+                    <h3 class="text-3xl text-[#0A192F]" data-lang="vn">Bảng Tiêu chí Chấm điểm</h3>
+                    <h3 class="text-3xl text-[#0A192F] hidden" data-lang="en">Scoring Rubric</h3>
+                    <button onclick="closeModal('radarRubricModal')" class="text-4xl font-black text-[#111111] hover:text-[#00B4DB]">&times;</button>
+                </div>
+                <div class="p-8">
+                    <table class="w-full text-left text-base border-collapse">
+                        <thead class="bg-[#0A192F] text-white">
+                            <tr>
+                                <th class="p-4 rounded-tl-[16px]" data-lang="vn">Tiêu chí</th>
+                                <th class="p-4 rounded-tl-[16px] hidden" data-lang="en">Metrics</th>
+                                <th class="p-4" data-lang="vn">Giải thích (Điểm càng cao thì...)</th>
+                                <th class="p-4 hidden" data-lang="en">Explanation (Higher score means...)</th>
+                            </tr>
+                        </thead>
+                        <tbody data-lang="vn">
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Sự nguyên bản tự nhiên</td>
+                                <td class="p-4">Bảo vệ tối đa sinh học. Các nhóm Non-Farm (Bột) bị chấm điểm đáy ở đây.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Năng lực nhồi vi chất</td>
+                                <td class="p-4">Chịu đựng được việc nhồi thêm rất nhiều chất vô cơ/dầu. (3) Composite vô địch.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Độ trơ lỳ vật lý/Vi sinh</td>
+                                <td class="p-4">Ít bị tách váng mỡ, lâu hỏng. Bột pha lại (4, 5) rất an toàn do đã diệt khuẩn từ dạng bột.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Bảo toàn Đạm & Hương vị</td>
+                                <td class="p-4">Không bị khét, đạm không bị chết. (4) UHT truyền thống bị điểm liệt vì khét nặng.</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Tối ưu Giá thành</td>
+                                <td class="p-4">Làm ra rẻ. Nhóm (4) Bột+nước và (5) Bột+béo tốn ít chi phí trang trại nhất.</td>
+                            </tr>
+                        </tbody>
+                        <tbody data-lang="en" class="hidden">
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Pure Natural Origin</td>
+                                <td class="p-4">Max bio-preservation. Non-Farm (Powder) groups bottom out here.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Fortified Capacity</td>
+                                <td class="p-4">Can handle heavy additives. (3) Composite is champion.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Physical/Micro Stability</td>
+                                <td class="p-4">Low spoilage. Reconstituted powders (4,5) are very safe as powder is pre-sterilized.</td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Protein & Flavor Integrity</td>
+                                <td class="p-4">No burnt taste, alive protein. (4) Old UHT fails due to heavy Maillard burning.</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-4 font-bold text-[#0A192F]">Cost Efficiency</td>
+                                <td class="p-4">Cheap production. Groups (4) and (5) avoid high farm maintenance costs entirely.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- II. MATRIX -->
+        <section id="matrix" class="mb-32">
+            <div class="mb-12 border-l-[8px] border-[#FFC107] pl-8 py-2">
+                <h3 class="text-4xl md:text-5xl text-[#0A192F]" data-lang="vn">II. Ma trận Định vị Công nghệ & Dinh dưỡng</h3>
+                <h3 class="text-4xl md:text-5xl text-[#0A192F] hidden" data-lang="en">II. Nutrition & Technology Matrix</h3>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111]" data-lang="vn">Độ khó của nhà máy khi gia công (Trục ngang) so với mức độ đậm đặc của công thức (Trục dọc). Vòng tròn bự là phân khúc đông đảo.</p>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111] hidden" data-lang="en">Factory processing difficulty (X-axis) vs. Formula density level (Y-axis). Larger bubbles represent a larger segment.</p>
+            </div>
+
+            <div class="glass-card p-10 mb-8">
+                <div class="chart-container" style="height: 500px;">
+                    <canvas id="bubbleChart"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" data-lang="vn">
+                <button onclick="openModal('modal-1')" class="bg-white border-2 border-[#00B4DB] text-[#00B4DB] font-bold py-3 px-4 rounded-[16px] hover:bg-[#00B4DB] hover:text-white transition-colors shadow-sm">Giải mã (1) Fresh Milk</button>
+                <button onclick="openModal('modal-2')" class="bg-white border-2 border-[#0083B0] text-[#0083B0] font-bold py-3 px-4 rounded-[16px] hover:bg-[#0083B0] hover:text-white transition-colors shadow-sm">Giải mã (2) Fortified</button>
+                <button onclick="openModal('modal-3')" class="bg-white border-2 border-[#FFC107] text-[#0A192F] font-bold py-3 px-4 rounded-[16px] hover:bg-[#FFC107] hover:text-[#0A192F] transition-colors shadow-sm">Giải mã (3) Composite</button>
+                <button onclick="openModal('modal-4')" class="bg-white border-2 border-[#111111] text-[#111111] font-bold py-3 px-4 rounded-[16px] hover:bg-[#111111] hover:text-white transition-colors shadow-sm">Giải mã (4) Old UHT</button>
+                <button onclick="openModal('modal-5')" class="bg-white border-2 border-[#0A192F] text-[#0A192F] font-bold py-3 px-4 rounded-[16px] hover:bg-[#0A192F] hover:text-white transition-colors shadow-sm">Giải mã (5) Recons</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 hidden" data-lang="en">
+                <button onclick="openModal('modal-1')" class="bg-white border-2 border-[#00B4DB] text-[#00B4DB] font-bold py-3 px-4 rounded-[16px] hover:bg-[#00B4DB] hover:text-white transition-colors shadow-sm">Detail (1) Fresh Milk</button>
+                <button onclick="openModal('modal-2')" class="bg-white border-2 border-[#0083B0] text-[#0083B0] font-bold py-3 px-4 rounded-[16px] hover:bg-[#0083B0] hover:text-white transition-colors shadow-sm">Detail (2) Fortified</button>
+                <button onclick="openModal('modal-3')" class="bg-white border-2 border-[#FFC107] text-[#0A192F] font-bold py-3 px-4 rounded-[16px] hover:bg-[#FFC107] hover:text-[#0A192F] transition-colors shadow-sm">Detail (3) Composite</button>
+                <button onclick="openModal('modal-4')" class="bg-white border-2 border-[#111111] text-[#111111] font-bold py-3 px-4 rounded-[16px] hover:bg-[#111111] hover:text-white transition-colors shadow-sm">Detail (4) Old UHT</button>
+                <button onclick="openModal('modal-5')" class="bg-white border-2 border-[#0A192F] text-[#0A192F] font-bold py-3 px-4 rounded-[16px] hover:bg-[#0A192F] hover:text-white transition-colors shadow-sm">Detail (5) Recons</button>
+            </div>
+        </section>
+
+        <!-- Matrix Modals -->
+        <div id="modal-1" class="modal-overlay">
+            <div class="modal-content p-10 relative">
+                <button onclick="closeModal('modal-1')" class="absolute top-6 right-8 text-4xl font-black">&times;</button>
+                <h3 class="text-3xl text-[#00B4DB] mb-6 border-b-2 border-[#00B4DB] inline-block pb-2">
+                    <span data-lang="vn">Cơ sở điểm: (1) Fresh Milk</span><span data-lang="en" class="hidden">Grading: (1) Fresh Milk</span>
+                </h3>
+                <div class="text-lg space-y-4" data-lang="vn">
+                    <p><strong>Độ khó máy móc (30/100):</strong> Cực thấp vì không có khâu pha chế. Chảy thẳng từ vắt -> ly tâm -> tiệt trùng.</p>
+                    <p><strong>Thiết kế dinh dưỡng (70/100):</strong> Ngon tự nhiên, nhưng giới hạn bởi mức vi chất tự nhiên của con bò.</p>
+                </div>
+                <div class="text-lg space-y-4 hidden" data-lang="en">
+                    <p><strong>Tech Complexity (30/100):</strong> Very low. Linear flow line, no complex physicochemical mixing phases.</p>
+                    <p><strong>Engineered Nutrition (70/100):</strong> High natural score but capped by the cow's biological limits.</p>
+                </div>
+            </div>
+        </div>
+        <div id="modal-2" class="modal-overlay">
+            <div class="modal-content p-10 relative">
+                <button onclick="closeModal('modal-2')" class="absolute top-6 right-8 text-4xl font-black">&times;</button>
+                <h3 class="text-3xl text-[#0083B0] mb-6 border-b-2 border-[#0083B0] inline-block pb-2">
+                    <span data-lang="vn">Cơ sở điểm: (2) Fortified Milk</span><span data-lang="en" class="hidden">Grading: (2) Fortified Milk</span>
+                </h3>
+                <div class="text-lg space-y-4" data-lang="vn">
+                    <p><strong>Độ khó máy móc (60/100):</strong> Cần hệ thống bơm châm vitamin khép kín để máy UHT không đốt cháy lượng vitamin đó.</p>
+                    <p><strong>Thiết kế dinh dưỡng (80/100):</strong> Bù đắp hoàn hảo sự thiếu hụt Canxi/Vit D tự nhiên của Fresh Milk.</p>
+                </div>
+                <div class="text-lg space-y-4 hidden" data-lang="en">
+                    <p><strong>Tech Complexity (60/100):</strong> Requires an aseptic Dosing machine to inject vitamins cleanly before UHT.</p>
+                    <p><strong>Engineered Nutrition (80/100):</strong> Successfully covers the natural Calcium/Vitamin D loopholes of Fresh Milk.</p>
+                </div>
+            </div>
+        </div>
+        <div id="modal-3" class="modal-overlay">
+            <div class="modal-content p-10 relative">
+                <button onclick="closeModal('modal-3')" class="absolute top-6 right-8 text-4xl font-black">&times;</button>
+                <h3 class="text-3xl text-[#0A192F] mb-6 border-b-2 border-[#FFC107] inline-block pb-2">
+                    <span data-lang="vn">Cơ sở điểm: (3) Composite / RTD Milk</span><span data-lang="en" class="hidden">Grading: (3) Composite / RTD Milk</span>
+                </h3>
+                <div class="text-lg space-y-4" data-lang="vn">
+                    <p><strong>Độ khó máy móc (95/100):</strong> Khó nhất. Phải dùng máy áp lực ép chặt dầu mỡ, khoáng nặng và màng protein thành 1 thể thống nhất không tách lớp.</p>
+                    <p><strong>Thiết kế dinh dưỡng (98/100):</strong> Điểm trần cao nhất. Được kỹ sư thiết kế nhồi nhét tối đa để đáp ứng đích danh (vd: bổ não DHA).</p>
+                </div>
+                <div class="text-lg space-y-4 hidden" data-lang="en">
+                    <p><strong>Tech Complexity (95/100):</strong> Most extreme. Requires extreme pressure to force oils, heavy minerals, and protein into a single non-separating liquid.</p>
+                    <p><strong>Engineered Nutrition (98/100):</strong> Highest ceiling. Engineered to the max for targeted functions (e.g., DHA for brain).</p>
+                </div>
+            </div>
+        </div>
+        <div id="modal-4" class="modal-overlay">
+            <div class="modal-content p-10 relative">
+                <button onclick="closeModal('modal-4')" class="absolute top-6 right-8 text-4xl font-black">&times;</button>
+                <h3 class="text-3xl text-[#111111] mb-6 border-b-2 border-[#111111] inline-block pb-2">
+                    <span data-lang="vn">Cơ sở điểm: (4) Conventional UHT</span><span data-lang="en" class="hidden">Grading: (4) Conventional UHT</span>
+                </h3>
+                <div class="text-lg space-y-4" data-lang="vn">
+                    <p><strong>Độ khó máy móc (40/100):</strong> Rất thấp. Cầm bột khuấy với nước và mang đi nấu chín đùn qua ống UHT cũ.</p>
+                    <p><strong>Thiết kế dinh dưỡng (30/100):</strong> Bột thô không có gì ngoài đạm cơ bản, lại bị đun nhiệt lâu khiến vitamin rụng sạch.</p>
+                </div>
+                <div class="text-lg space-y-4 hidden" data-lang="en">
+                    <p><strong>Tech Complexity (40/100):</strong> Very low. Simply mixing raw powder with water and running it through old UHT pipes.</p>
+                    <p><strong>Engineered Nutrition (30/100):</strong> Raw powder offers nothing but basic protein, and prolonged heating strips away all vitamins.</p>
+                </div>
+            </div>
+        </div>
+        <div id="modal-5" class="modal-overlay">
+            <div class="modal-content p-10 relative">
+                <button onclick="closeModal('modal-5')" class="absolute top-6 right-8 text-4xl font-black">&times;</button>
+                <h3 class="text-3xl text-[#0A192F] mb-6 border-b-2 border-[#0A192F] inline-block pb-2">
+                    <span data-lang="vn">Cơ sở điểm: (5) Reconstituted Milk</span><span data-lang="en" class="hidden">Grading: (5) Reconstituted Milk</span>
+                </h3>
+                <div class="text-lg space-y-4" data-lang="vn">
+                    <p><strong>Độ khó máy móc (60/100):</strong> Phức tạp hơn UHT cũ vì phải châm thêm béo (Milk fat), đánh tơi bột tốc độ cao và khử bọt khí khắt khe để sữa không bị oxy hóa.</p>
+                    <p><strong>Thiết kế dinh dưỡng (50/100):</strong> Dù có bù đắp vi chất, bản chất bột đã chết sinh học ở lò sấy trước đó. Uống chỉ nạp calo.</p>
+                </div>
+                <div class="text-lg space-y-4 hidden" data-lang="en">
+                    <p><strong>Tech Complexity (60/100):</strong> Harder than basic UHT due to adding milk fat, high-shear powder blending, and strict de-aeration.</p>
+                    <p><strong>Engineered Nutrition (50/100):</strong> Despite added vitamins, the powder's biology was killed in the drying kiln. Mostly just empty calories.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- III. REGIONAL EU vs SEA -->
+        <section id="regional" class="mb-32">
+            <div class="mb-12 border-l-[8px] border-[#0A192F] pl-8 py-2">
+                <h3 class="text-4xl md:text-5xl text-[#0A192F]" data-lang="vn">III. Tương quan Nguồn Farm Base: EU vs ĐNÁ</h3>
+                <h3 class="text-4xl md:text-5xl text-[#0A192F] hidden" data-lang="en">III. Farm Base Region: EU vs SEA</h3>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111]" data-lang="vn">Phân tích rõ rệt vì sao EU luôn là nguyên liệu "vũ khí tối thượng" cho dòng Fresh Milk thông qua các chỉ số y sinh học thuật <a href="#ref4" class="cite-ref">[4]</a>.</p>
+                <p class="text-lg mt-3 max-w-4xl text-[#111111] hidden" data-lang="en">Analyzing precisely why EU is the "ultimate weapon" for Fresh Milk base via academic biomedical metrics <a href="#ref4" class="cite-ref">[4]</a>.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <div class="glass-card p-8">
+                    <h4 class="text-2xl font-black text-[#00B4DB] mb-2" data-lang="vn">Chỉ số Tích cực (Positive Metrics)</h4>
+                    <h4 class="text-2xl font-black text-[#00B4DB] mb-2 hidden" data-lang="en">Positive Metrics</h4>
+                    <p class="text-sm text-gray-600 mb-6" data-lang="vn">Trục X: % Dưỡng chất (Càng cao càng tốt).</p>
+                    <p class="text-sm text-gray-600 mb-6 hidden" data-lang="en">X-Axis: Nutrient % (Higher is better).</p>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="barChartPositive"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card p-8">
+                    <h4 class="text-2xl font-black text-[#FFC107] mb-2" data-lang="vn">Chỉ số Tiêu cực (Negative Metrics)</h4>
+                    <h4 class="text-2xl font-black text-[#FFC107] mb-2 hidden" data-lang="en">Negative Metrics</h4>
+                    <p class="text-sm text-gray-600 mb-6" data-lang="vn">Trục X: Chỉ số học thuật (Càng thấp càng tốt).</p>
+                    <p class="text-sm text-gray-600 mb-6 hidden" data-lang="en">X-Axis: Academic Metrics (Lower is better).</p>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="barChartNegative"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parallel Legal Boxes -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="glass-card p-8 border-l-[8px] border-[#0A192F]">
+                    <h4 class="text-2xl font-black text-[#0A192F] mb-4" data-lang="vn">Tiêu chuẩn Châu Âu (EU)</h4>
+                    <h4 class="text-2xl font-black text-[#0A192F] mb-4 hidden" data-lang="en">EU Legal Requirements</h4>
+                    <ul class="list-disc pl-5 space-y-3 text-base text-[#111111]" data-lang="vn">
+                        <li>Luật yêu cầu Vật chất khô (SNF) khắt khe phải trên <strong>8.5%</strong>.</li>
+                        <li>Chỉ số tế bào Soma (SCC) rớt xuống mức đáy, chứng minh đàn bò không bị stress nhiệt bức bối.</li>
+                    </ul>
+                    <ul class="list-disc pl-5 space-y-3 text-base text-[#111111] hidden" data-lang="en">
+                        <li>Strict Solid Non-Fat (SNF) requirement must exceed <strong>8.5%</strong>.</li>
+                        <li>Somatic Cell Count (SCC) hits rock bottom, proving cows are free from heat stress.</li>
+                    </ul>
+                </div>
+                <div class="glass-card p-8 border-l-[8px] border-[#FFC107]">
+                    <h4 class="text-2xl font-black text-[#111111] mb-4" data-lang="vn">Tiêu chuẩn LANA (Thái Lan) & ĐNÁ</h4>
+                    <h4 class="text-2xl font-black text-[#111111] mb-4 hidden" data-lang="en">LANA (Thailand) & SEA Requirements</h4>
+                    <ul class="list-disc pl-5 space-y-3 text-base text-[#111111]" data-lang="vn">
+                        <li>Bắt buộc nhượng bộ hạ tiêu chuẩn Vật chất khô (SNF) xuống mốc <strong>~8.0 - 8.2%</strong> <a href="#ref5" class="cite-ref">[5]</a>.</li>
+                        <li>Do khí hậu xích đạo khắc nghiệt làm bò nóng (Heat Stress), chúng uống nhiều nước khiến sữa bị loãng sinh lý tự nhiên. Đòi hỏi 8.5% là bất khả thi.</li>
+                    </ul>
+                    <ul class="list-disc pl-5 space-y-3 text-base text-[#111111] hidden" data-lang="en">
+                        <li>Forced concession lowering Solid Non-Fat (SNF) standards to <strong>~8.0 - 8.2%</strong> <a href="#ref5" class="cite-ref">[5]</a>.</li>
+                        <li>Equatorial heat makes cows drink excessively, causing physiological milk dilution. 8.5% is impossible.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- IV. QCVN vs INDUSTRY (Redesigned 3-Column Grid) -->
+        <section id="qcvn" class="mb-24">
+            <div class="mb-12 text-center">
+                <h3 class="text-4xl md:text-5xl text-[#0A192F]" data-lang="vn">IV. Ánh xạ Khoảng trống: Luật QCVN vs Ngành Công nghiệp</h3>
+                <h3 class="text-4xl md:text-5xl text-[#0A192F] hidden" data-lang="en">IV. The Gap: QCVN Legal vs Industrial Reality</h3>
+                <p class="text-lg mt-4 max-w-4xl mx-auto" data-lang="vn">Trình bày trực quan 3 cột nhằm bóc tách rạch ròi những điểm khác biệt giữa cách phân loại của Luật pháp và mức độ tinh vi của Máy móc, cũng như điểm giao thoa duy nhất của hai bên.</p>
+                <p class="text-lg mt-4 max-w-4xl mx-auto hidden" data-lang="en">A visual 3-column layout to strictly dissect the differences between Legal classification and Machinery sophistication, alongside their single point of overlap.</p>
+            </div>
+
+            <!-- 3-Column Grid Layout (Replacing buggy Venn design) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch mb-12">
+                
+                <!-- Column 1: QCVN Legal Only -->
+                <div class="glass-card p-8 border-t-[8px] border-[#00B4DB] flex flex-col">
+                    <h4 class="text-2xl font-black text-[#00B4DB] mb-6 border-b border-gray-200 pb-3" data-lang="vn">Khác biệt của Luật QCVN</h4>
+                    <h4 class="text-2xl font-black text-[#00B4DB] mb-6 border-b border-gray-200 pb-3 hidden" data-lang="en">QCVN Legal Differences</h4>
+                    <ul class="text-base list-disc pl-5 text-[#111111] space-y-4 flex-grow" data-lang="vn">
+                        <li>Dựa hoàn toàn vào việc đếm <strong>nguồn gốc nguyên liệu</strong>. Chứng minh đủ 99% khối lượng vắt ra từ bò thì nghiễm nhiên gọi là "Tươi".</li>
+                        <li>Gom chung đồ màng lọc xịn (Fresh) và đồ đun quá lửa (Old UHT cháy khét) vào chung một rổ nhãn mác. Không bảo vệ được giá trị màng lọc.</li>
+                        <li>Tách biệt rất rạch ròi "Sữa hoàn nguyên" (chỉ Bột + Nước) và "Sữa pha lại" (Bột + Béo + Nước).</li>
+                        <li>Định nghĩa "Hỗn hợp" một cách rất thô sơ cơ học, xem như việc lấy bột đổ chung với sữa tươi.</li>
+                    </ul>
+                    <ul class="text-base list-disc pl-5 text-[#111111] space-y-4 flex-grow hidden" data-lang="en">
+                        <li>Relies entirely on <strong>counting origin material</strong>. Proving 99% extracted volume grants the "Fresh" label.</li>
+                        <li>Groups premium high-tech filtration (Fresh) and over-boiled milk (Old UHT) under the same label, failing to protect premium bio-filtration values.</li>
+                        <li>Strictly separates "Reconstituted" (Powder+Water) and "Recombined" (Powder+Fat+Water).</li>
+                        <li>Defines "Composite" very primitively, treating it as mechanically pouring powder into fresh milk.</li>
+                    </ul>
+                </div>
+
+                <!-- Column 2: The Absolute Overlap -->
+                <div class="glass-card p-8 border-t-[8px] border-[#0A192F] flex flex-col bg-[#0A192F]/5">
+                    <h4 class="text-2xl font-black text-[#0A192F] mb-6 border-b border-gray-300 pb-3" data-lang="vn">Giao Thoa Tuyệt Đối</h4>
+                    <h4 class="text-2xl font-black text-[#0A192F] mb-6 border-b border-gray-300 pb-3 hidden" data-lang="en">Absolute Overlap</h4>
+                    
+                    <div class="text-center mb-6 mt-4">
+                        <span class="text-lg font-black text-[#FFC107] bg-[#0A192F] rounded-full py-2 px-5 inline-block shadow-lg">(5) Reconstituted Milk</span>
+                    </div>
+                    
+                    <p class="text-base font-bold text-[#111111] text-center" data-lang="vn">
+                        Điểm chung duy nhất giữa hai hệ tư tưởng.<br><br>
+                        Cả Luật pháp và Kỹ sư nhà máy đều đồng tình 100%: Nhóm sản phẩm lấy bột thô pha lại với nước này tuyệt đối <strong>không chứa 1 giọt "sữa tươi" nào</strong>. Nó là hàng cấp thấp "nấu lại từ đầu" và cấu trúc sinh học nguyên bản đã chết.
+                    </p>
+                    <p class="text-base font-bold text-[#111111] text-center hidden" data-lang="en">
+                        The only common ground between the two ideologies.<br><br>
+                        Both Law and Factory Engineers agree 100%: This product category, mixing raw powder back with water, contains absolutely <strong>zero drops of "fresh milk"</strong>. It is a low-tier "re-cooked" product whose original biology is dead.
+                    </p>
+                </div>
+
+                <!-- Column 3: Industrial Reality Only -->
+                <div class="glass-card p-8 border-t-[8px] border-[#FFC107] flex flex-col">
+                    <h4 class="text-2xl font-black text-[#FFC107] mb-6 border-b border-gray-200 pb-3 text-[#0A192F]" data-lang="vn">Khác biệt Thực tế Sản xuất</h4>
+                    <h4 class="text-2xl font-black text-[#FFC107] mb-6 border-b border-gray-200 pb-3 text-[#0A192F] hidden" data-lang="en">Industrial Reality Differences</h4>
+                    <ul class="text-base list-disc pl-5 text-[#111111] space-y-4 flex-grow" data-lang="vn">
+                        <li>Soi cực kỹ độ khó của <strong>công nghệ sinh hóa học</strong> khi máy móc vận hành.</li>
+                        <li>Tách rạch ròi hàng vắt tươi tiệt trùng UHT xịn (1) với hàng dùng bột thô pha nước đun quá lửa (4).</li>
+                        <li>Gộp chung "Hoàn nguyên" và "Pha lại" vào chung một rổ (Non-Farm Base) vì bản chất tụi nó đều là nấu bột chín lại.</li>
+                        <li>Hiểu rõ "Sữa hỗn hợp" (Composite/RTD) thực ra là đỉnh cao của Thiết kế Chức năng (Engineered Nutrition) khi phải ép dầu cá DHA, Canxi vào dung dịch, chứ không phải hàng trộn tạp nham.</li>
+                    </ul>
+                    <ul class="text-base list-disc pl-5 text-[#111111] space-y-4 flex-grow hidden" data-lang="en">
+                        <li>Scrutinizes the difficulty of <strong>biochemical technology</strong> during machinery operation.</li>
+                        <li>Strictly separates premium UHT fresh milk (1) from basic powder-water mixes boiled too long (4).</li>
+                        <li>Merges "Reconstituted" and "Recombined" into one Non-Farm Base basket, as both are fundamentally re-cooked powder.</li>
+                        <li>Understands "Composite" (RTD) is the pinnacle of Engineered Nutrition (forcing DHA oils and Calcium into a solution), not a cheap mixture.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-gray-200 py-12 text-sm text-[#111111] relative z-10 font-medium">
+        <div class="container mx-auto max-w-7xl px-4">
+            <h5 class="text-xl font-black text-[#0A192F] mb-6">References (APA 7)</h5>
+            <ol class="list-decimal pl-6 space-y-3">
+                <li id="ref1">Food and Agriculture Organization of the United Nations (FAO). (2022). <em>Dairy Production and Products: Industrial Processing Standards</em>. Rome: FAO Publications.</li>
+                <li id="ref2">Fox, P. F., Uniacke-Lowe, T., McSweeney, P. L. H., & O'Mahony, J. A. (2015). <em>Dairy Chemistry and Biochemistry</em> (3rd ed.). Springer.</li>
+                <li id="ref3">Tetra Pak. (2021). <em>Dairy Processing Handbook: Recombined and Reconstituted Milk Products</em> (Chapter 18). Tetra Pak International SA.</li>
+                <li id="ref4">Journal of Dairy Science. (2023). Impact of severe heat stress on raw milk composition and somatic cell count in Holstein vs Crossbred cattle in tropical climates. <em>Journal of Dairy Science, 106</em>(4), 2589-2601.</li>
+                <li id="ref5">Food and Drug Administration Thailand. (2018). <em>Notification of the Ministry of Public Health (No. 352) B.E. 2556 Re: Cow's Milk</em>. Royal Thai Government Gazette.</li>
+                <li id="ref6" class="font-bold text-[#0A192F]">Bộ Y Tế Việt Nam. (2010). <em>QCVN 5-1:2010/BYT - Quy chuẩn kỹ thuật quốc gia đối với các sản phẩm sữa dạng lỏng</em>. Hà Nội, Việt Nam.</li>
+            </ol>
+        </div>
+    </footer>
+
+    <!-- JS CHUYỂN ĐỔI NGÔN NGỮ & RENDER CHART -->
+    <script>
+        let currentLang = 'vn';
+
+        const chartTranslations = {
+            vn: {
+                radarLabels: ['Sự nguyên bản tự nhiên (Origin)', 'Năng lực nhồi vi chất (Fortified)', 'Độ trơ lỳ vật lý/Vi sinh (Stability)', 'Bảo toàn Đạm & Hương vị (Integrity)', 'Tối ưu Giá thành (Efficiency)'],
+                bubbleX: 'Trục X: Độ khó gia công (Máy móc/Đồng hóa)',
+                bubbleY: 'Trục Y: Độ đậm đặc cấu trúc dinh dưỡng',
+                bubbleLabelX: 'Độ khó máy móc',
+                bubbleLabelY: 'Dinh dưỡng',
+                posLabels: ['Hàm lượng Đạm (% Protein)', 'Hàm lượng Béo (% Fat)'],
+                posLegends: ['Farm Base Châu Âu', 'Farm Base Đông Nam Á'],
+                posXAxis: 'Tỷ lệ % vắt ra (Càng cao càng tốt)',
+                negLabels: ['Chỉ số Ôn ẩm - THI (Stress >72)', 'Tế bào Soma (x1000 cells/mL)'],
+                negXAxis: 'Chỉ số đo lường (Càng thấp càng tốt)'
+            },
+            en: {
+                radarLabels: ['Pure Natural Origin', 'Fortified Nutrition Capacity', 'Physical/Micro Stability', 'Protein & Flavor Integrity', 'Cost Efficiency'],
+                bubbleX: 'X-Axis: Factory Processing Difficulty',
+                bubbleY: 'Y-Axis: Engineered Nutrition Density',
+                bubbleLabelX: 'Complexity',
+                bubbleLabelY: 'Nutrition',
+                posLabels: ['Protein Content (%)', 'Fat Content (%)'],
+                posLegends: ['EU Farm Base', 'SEA Farm Base'],
+                posXAxis: 'Yield Percentage (Higher is better)',
+                negLabels: ['Temperature-Humidity Index - THI (Stress >72)', 'Somatic Cell Count (x1000 cells/mL)'],
+                negXAxis: 'Measured Index (Lower is better)'
+            }
+        };
+
+        function wrapLabels(label, maxLength = 16) {
+            if (label.length <= maxLength) return label;
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            words.forEach(word => {
+                if ((currentLine + word).length > maxLength) {
+                    if (currentLine) lines.push(currentLine.trim());
+                    currentLine = word + ' ';
+                } else {
+                    currentLine += word + ' ';
+                }
+            });
+            if (currentLine) lines.push(currentLine.trim());
+            return lines;
+        }
+
+        const tooltipConfig = {
+            tooltip: {
+                callbacks: {
+                    title: function(tooltipItems) {
+                        const item = tooltipItems[0];
+                        let label = item.chart.data.labels[item.dataIndex];
+                        return Array.isArray(label) ? label.join(' ') : label;
+                    }
+                }
+            }
+        };
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); document.body.style.overflow = 'hidden'; }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow = ''; }
+
+        let radarChartObj, bubbleChartObj, posBarChartObj, negBarChartObj;
+
+        function initCharts() {
+            // RADAR CHART (Updated Scores based on strict Powder definitions for 4, 5)
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChartObj = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: chartTranslations[currentLang].radarLabels.map(l => wrapLabels(l)),
+                    datasets: [
+                        { label: '(1) Fresh Milk', data: [100, 20, 60, 95, 30], backgroundColor: 'rgba(0, 180, 219, 0.15)', borderColor: '#00B4DB', pointBackgroundColor: '#00B4DB', borderWidth: 3 },
+                        { label: '(2) Fortified Milk', data: [80, 70, 55, 80, 40], backgroundColor: 'rgba(0, 131, 176, 0.15)', borderColor: '#0083B0', pointBackgroundColor: '#0083B0', borderWidth: 3 },
+                        { label: '(3) Composite / RTD', data: [20, 100, 50, 60, 20], backgroundColor: 'rgba(255, 193, 7, 0.15)', borderColor: '#FFC107', pointBackgroundColor: '#FFC107', borderWidth: 3 },
+                        { label: '(4) Conventional UHT', data: [10, 10, 80, 20, 90], backgroundColor: 'rgba(17, 17, 17, 0.15)', borderColor: '#111111', pointBackgroundColor: '#111111', borderWidth: 3 },
+                        { label: '(5) Reconstituted', data: [10, 40, 90, 30, 85], backgroundColor: 'rgba(10, 25, 47, 0.15)', borderColor: '#0A192F', pointBackgroundColor: '#0A192F', borderWidth: 3 }
+                    ]
+                },
+                options: { maintainAspectRatio: false, plugins: { ...tooltipConfig, legend: { position: 'right', labels: { font: { family: 'Roboto', weight: 'bold', size: 13 }, color: '#0A192F' } } }, scales: { r: { angleLines: { color: 'rgba(0,0,0,0.1)' }, grid: { color: 'rgba(0,0,0,0.1)' }, pointLabels: { font: { family: 'Roboto', weight: 'bold', size: 13 }, color: '#0A192F' }, ticks: { display: false, min: 0, max: 100 } } } }
+            });
+
+            // BUBBLE CHART (Updated Coordinates)
+            const ctxBubble = document.getElementById('bubbleChart').getContext('2d');
+            bubbleChartObj = new Chart(ctxBubble, {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        { label: '(1) Fresh Milk', data: [{x: 30, y: 70, r: 25}], backgroundColor: 'rgba(0, 180, 219, 0.7)', borderColor: '#00B4DB', borderWidth: 2 },
+                        { label: '(2) Fortified Milk', data: [{x: 60, y: 80, r: 15}], backgroundColor: 'rgba(0, 131, 176, 0.7)', borderColor: '#0083B0', borderWidth: 2 },
+                        { label: '(3) Composite / RTD', data: [{x: 95, y: 98, r: 40}], backgroundColor: 'rgba(255, 193, 7, 0.8)', borderColor: '#FFC107', borderWidth: 3 },
+                        { label: '(4) Conventional UHT', data: [{x: 40, y: 30, r: 10}], backgroundColor: 'rgba(17, 17, 17, 0.6)', borderColor: '#111111', borderWidth: 2 },
+                        { label: '(5) Reconstituted', data: [{x: 60, y: 50, r: 30}], backgroundColor: 'rgba(10, 25, 47, 0.7)', borderColor: '#0A192F', borderWidth: 2 }
+                    ]
+                },
+                options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(c) { return c.dataset.label + ' | ' + chartTranslations[currentLang].bubbleLabelX + ': ' + c.raw.x + ' | ' + chartTranslations[currentLang].bubbleLabelY + ': ' + c.raw.y; } } }, legend: { display: false } }, scales: { x: { title: { display: true, text: chartTranslations[currentLang].bubbleX, font: {family: 'Roboto', weight: '900', size: 15}, color: '#0A192F' }, min: 0, max: 110, grid: { color: 'rgba(0, 0, 0, 0.05)', lineWidth: 2 } }, y: { title: { display: true, text: chartTranslations[currentLang].bubbleY, font: {family: 'Roboto', weight: '900', size: 15}, color: '#0A192F' }, min: 0, max: 110, grid: { color: 'rgba(0, 0, 0, 0.05)', lineWidth: 2 } } } }
+            });
+
+            // BAR CHARTS (Unchanged Logic, just using translation vars)
+            const ctxPos = document.getElementById('barChartPositive').getContext('2d');
+            posBarChartObj = new Chart(ctxPos, {
+                type: 'bar',
+                data: {
+                    labels: chartTranslations[currentLang].posLabels.map(l => wrapLabels(l)),
+                    datasets: [
+                        { label: chartTranslations[currentLang].posLegends[0], data: [3.5, 4.0], backgroundColor: '#0A192F', borderRadius: 4 },
+                        { label: chartTranslations[currentLang].posLegends[1], data: [3.0, 3.4], backgroundColor: '#00B4DB', borderRadius: 4 }
+                    ]
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { ...tooltipConfig, legend: { position: 'bottom', labels: {font: {family: 'Roboto', weight: 'bold'}} } }, scales: { x: { title: { display: true, text: chartTranslations[currentLang].posXAxis }, max: 5 }, y: { grid: { display: false } } } }
+            });
+
+            const ctxNeg = document.getElementById('barChartNegative').getContext('2d');
+            negBarChartObj = new Chart(ctxNeg, {
+                type: 'bar',
+                data: {
+                    labels: chartTranslations[currentLang].negLabels.map(l => wrapLabels(l)),
+                    datasets: [
+                        { label: chartTranslations[currentLang].posLegends[0], data: [65, 150], backgroundColor: '#0A192F', borderRadius: 4 },
+                        { label: chartTranslations[currentLang].posLegends[1], data: [82, 450], backgroundColor: '#FFC107', borderRadius: 4 }
+                    ]
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { ...tooltipConfig, legend: { position: 'bottom', labels: {font: {family: 'Roboto', weight: 'bold'}} } }, scales: { x: { title: { display: true, text: chartTranslations[currentLang].negXAxis } }, y: { grid: { display: false } } } }
+            });
+        }
+
+        function toggleLanguage() {
+            currentLang = document.getElementById('lang-toggle').checked ? 'en' : 'vn';
+            
+            document.getElementById('lang-vn-label').style.color = currentLang === 'vn' ? '#0A192F' : '#9CA3AF';
+            document.getElementById('lang-en-label').style.color = currentLang === 'en' ? '#00B4DB' : '#9CA3AF';
+
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                if (el.getAttribute('data-lang') === currentLang) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            radarChartObj.data.labels = chartTranslations[currentLang].radarLabels.map(l => wrapLabels(l));
+            radarChartObj.update();
+
+            bubbleChartObj.options.scales.x.title.text = chartTranslations[currentLang].bubbleX;
+            bubbleChartObj.options.scales.y.title.text = chartTranslations[currentLang].bubbleY;
+            bubbleChartObj.update();
+
+            posBarChartObj.data.labels = chartTranslations[currentLang].posLabels.map(l => wrapLabels(l));
+            posBarChartObj.data.datasets[0].label = chartTranslations[currentLang].posLegends[0];
+            posBarChartObj.data.datasets[1].label = chartTranslations[currentLang].posLegends[1];
+            posBarChartObj.options.scales.x.title.text = chartTranslations[currentLang].posXAxis;
+            posBarChartObj.update();
+
+            negBarChartObj.data.labels = chartTranslations[currentLang].negLabels.map(l => wrapLabels(l));
+            negBarChartObj.data.datasets[0].label = chartTranslations[currentLang].posLegends[0];
+            negBarChartObj.data.datasets[1].label = chartTranslations[currentLang].posLegends[1];
+            negBarChartObj.options.scales.x.title.text = chartTranslations[currentLang].negXAxis;
+            negBarChartObj.update();
+        }
+
+        window.onload = () => {
+            initCharts();
+            document.getElementById('lang-vn-label').style.color = '#0A192F';
+        };
+    </script>
+</body>
+</html>
